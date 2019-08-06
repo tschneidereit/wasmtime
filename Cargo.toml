@@ -22,8 +22,8 @@ name = "wasm2obj"
 path = "src/wasm2obj.rs"
 
 [dependencies]
-cranelift-codegen = { version = "0.37.0", features = ["enable-serde"] }
-cranelift-native = "0.37.0"
+cranelift-codegen = { version = "0.38.0", features = ["enable-serde"] }
+cranelift-native = "0.38.0"
 wasmtime-debug = { path = "wasmtime-debug" }
 wasmtime-environ = { path = "wasmtime-environ" }
 wasmtime-runtime = { path = "wasmtime-runtime" }
@@ -40,7 +40,7 @@ target-lexicon = { version = "0.4.0", default-features = false }
 pretty_env_logger = "0.3.0"
 file-per-thread-logger = "0.1.1"
 wabt = "0.7"
-libc = "0.2.50"
+libc = "0.2.60"
 errno = "0.2.4"
 rayon = "1.1"
 
