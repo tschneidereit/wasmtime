@@ -250,6 +250,7 @@ jobs:
       tag: 'dev'
     condition: eq(variables['Build.SourceBranch'], 'refs/heads/master')
   - script: |
+      git checkout master
       git push :dev
     condition: eq(variables['Build.SourceBranch'], 'refs/heads/master')
   - task: GitHubRelease@0
