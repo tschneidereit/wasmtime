@@ -221,7 +221,9 @@ jobs:
   # dependsOn: Build
   condition: and(succeeded(), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI'))
   steps:
-  # - checkout: none
+  - checkout: self
+    persistCredentials: true
+    submodules: false
   - bash: |
       echo "##vso[task.setvariable variable=repo;]`echo $(Build.Repository.Uri) | sed 's|https://github.com/\(.*\)|\1|'`"
   # - task: DownloadPipelineArtifact@1
@@ -251,6 +253,8 @@ jobs:
     condition: eq(variables['Build.SourceBranch'], 'refs/heads/master')
   - script: |
       git checkout master
+    condition: eq(variables['Build.SourceBranch'], 'refs/heads/master')
+  - script: |
       git -c http.extraheader="AUTHORIZATION: basic ***" push :dev
     condition: eq(variables['Build.SourceBranch'], 'refs/heads/master')
   - task: GitHubRelease@0
