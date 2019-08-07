@@ -1,8 +1,9 @@
 name: $(Build.SourceBranch)-$(date:yyyyMMdd)$(rev:.r)
 trigger:
-  # branches:
-  #   include:
-  #   - 'master'
+  branches:
+    include:
+    - 'master'
+    - 'fix-rolling-dev-release'
   tags:
     include:
     - '*'
