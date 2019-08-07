@@ -3,7 +3,6 @@ trigger:
   branches:
     include:
     - 'master'
-    - 'fix-rolling-dev-release'
   tags:
     include:
     - '*'
@@ -253,10 +252,9 @@ jobs:
     continueOnError: true
     condition: eq(variables['Build.SourceBranch'], 'refs/heads/master')
   - script: |
-      git checkout master
-    condition: eq(variables['Build.SourceBranch'], 'refs/heads/master')
-  - script: |
+      # git checkout master
       git -c http.extraheader="AUTHORIZATION: basic ***" push origin :dev
+    continueOnError: true
     condition: eq(variables['Build.SourceBranch'], 'refs/heads/master')
   - task: GitHubRelease@0
     inputs:
