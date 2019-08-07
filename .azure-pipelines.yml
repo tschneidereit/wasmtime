@@ -250,6 +250,7 @@ jobs:
       repositoryName: '$(repo)'
       action: 'delete'
       tag: 'dev'
+    continueOnError: true
     condition: eq(variables['Build.SourceBranch'], 'refs/heads/master')
   - script: |
       git checkout master
@@ -264,7 +265,7 @@ jobs:
       action: 'create'
       target: '$(Build.SourceVersion)'
       tag: 'dev'
-      # tagSource: 'manual'
+      tagSource: 'manual'
       title: 'Latest CI build'
       # assets: '$(Build.ArtifactStagingDirectory)/**'
       isDraft: false
