@@ -255,7 +255,7 @@ jobs:
       git checkout master
     condition: eq(variables['Build.SourceBranch'], 'refs/heads/master')
   - script: |
-      git -c http.extraheader="AUTHORIZATION: basic ***" push :dev
+      git -c http.extraheader="AUTHORIZATION: basic ***" push origin :dev
     condition: eq(variables['Build.SourceBranch'], 'refs/heads/master')
   - task: GitHubRelease@0
     inputs:
