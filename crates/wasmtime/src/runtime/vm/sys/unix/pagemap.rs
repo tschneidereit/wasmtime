@@ -2,21 +2,18 @@
 //!
 //! For other platforms, a no-op implementation is provided.
 
-use crate::prelude::*;
-pub use internal::dirty_pages_in_region;
+pub use internal::{dirty_pages_in_region, dirty_pages_scan_supported};
 use std::fmt;
-use std::mem::MaybeUninit;
 
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct DirtyPages<'a> {
     /// Slice into the initialized portion of region_storage
     pub regions: &'a [PageRegion],
+
     /// The number of bytes checked in the pagemap. Might be less than `len`, in which case
     /// the pages beyond `checked_bytes` should be treated as potentially dirty.
     pub checked_bytes: usize,
-    // We hold the storage here to keep it alive while regions points into it
-    region_storage: Vec<MaybeUninit<PageRegion>>,
 }
 
 #[repr(C)]
@@ -58,6 +55,11 @@ mod internal {
     use super::DirtyPages;
     use crate::prelude::*;
     use crate::runtime::vm::HostAlignedByteCount;
+
+    pub fn dirty_pages_scan_supported() -> bool {
+        false
+    }
+
     #[allow(unused_variables)]
     pub fn dirty_pages_in_region<'a>(
         base: *const u8,
@@ -72,7 +74,7 @@ mod internal {
 mod internal {
     use super::{Categories, DirtyPages, PageRegion};
     use crate::prelude::*;
-    use crate::runtime::vm::{host_page_size, HostAlignedByteCount};
+    use crate::runtime::vm::HostAlignedByteCount;
     use rustix::ioctl::{ioctl, opcode, Ioctl, IoctlOutput, Opcode};
     use std::fs::File;
     use std::mem::MaybeUninit;
@@ -80,45 +82,37 @@ mod internal {
     use std::sync::LazyLock;
     use std::{fmt, ptr};
 
-    pub fn dirty_pages_in_region<'a>(
+    pub fn dirty_pages_scan_supported() -> bool {
+        PAGEMAP.is_some()
+    }
+
+    pub fn dirty_pages_in_region(
         base: *const u8,
         len: HostAlignedByteCount,
-        max_bytes: HostAlignedByteCount,
-    ) -> Result<DirtyPages<'a>> {
-        // The `pagemap_scan` ioctl interprets max_pages == 0 as "no limit",
-        // whereas we want to interpret it as "don't scan any pages".
-        let max_pages = max_bytes.byte_count() / host_page_size();
-        if max_pages == 0 {
-            return Ok(DirtyPages {
-                regions: &[],
-                checked_bytes: 0,
-                region_storage: vec![],
-            });
-        }
+        regions_buffer: &mut [MaybeUninit<PageRegion>],
+    ) -> Result<DirtyPages> {
         let pagemap = match &*PAGEMAP {
             Some(pagemap) => pagemap,
             None => return Err(anyhow!("pagemap_scan ioctl not supported")),
         };
 
-        let mut storage = vec![MaybeUninit::uninit(); max_pages];
         let scan_arg = PageMapScan::new(
             ptr::slice_from_raw_parts(base, len.byte_count()),
-            &mut storage,
-            max_pages,
+            regions_buffer,
+            regions_buffer.len(),
         );
         let result = unsafe { ioctl(pagemap, scan_arg) };
         match result {
             Ok(result) => {
                 let regions = unsafe {
                     std::slice::from_raw_parts(
-                        storage.as_ptr() as *const PageRegion,
+                        regions_buffer.as_ptr() as *const PageRegion,
                         result.regions_count,
                     )
                 };
                 Ok(DirtyPages {
                     regions,
                     checked_bytes: result.walk_end - base as usize,
-                    region_storage: storage,
                 })
             }
             Err(_) => Err(anyhow!("pagemap_scan ioctl failed")),
