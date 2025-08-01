@@ -83,11 +83,7 @@ use crate::prelude::*;
 #[cfg(feature = "gc")]
 use crate::runtime::vm::GcRootsList;
 use crate::runtime::vm::mpk::ProtectionKey;
-use crate::runtime::vm::{
-    self, GcStore, Imports, InstanceAllocationRequest, InstanceAllocator, InstanceHandle,
-    Interpreter, InterpreterRef, ModuleRuntimeInfo, OnDemandInstanceAllocator, SendSyncPtr,
-    SignalHandler, StoreBox, StorePtr, Unwind, VMContext, VMFuncRef, VMGcRef, VMStoreContext,
-};
+use crate::runtime::vm::{self, GcStore, Imports, InstanceAllocationRequest, InstanceAllocator, InstanceHandle, Interpreter, InterpreterRef, KeepResidentState, ModuleRuntimeInfo, OnDemandInstanceAllocator, SendSyncPtr, SignalHandler, StoreBox, StorePtr, Unwind, VMContext, VMFuncRef, VMGcRef, VMStoreContext};
 use crate::trampoline::VMHostGlobalContext;
 use crate::{Engine, Module, Trap, Val, ValRaw, module::ModuleRegistry};
 use crate::{Global, Instance, Memory, Table, Uninhabited};
@@ -2258,7 +2254,7 @@ impl Drop for StoreOpaque {
                 debug_assert!(self.engine.features().gc_types());
                 let (mem_alloc_index, mem) =
                     allocator.deallocate_gc_heap(gc_alloc_index, gc_store.gc_heap);
-                allocator.deallocate_memory(None, mem_alloc_index, mem);
+                allocator.deallocate_memory(None, mem_alloc_index, mem, &mut KeepResidentState::default());
             }
 
             for (idx, instance) in self.instances.iter_mut().enumerate() {

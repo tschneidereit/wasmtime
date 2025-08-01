@@ -5,7 +5,7 @@ use super::host_page_size;
 /// A number of bytes that's guaranteed to be aligned to the host page size.
 ///
 /// This is used to manage page-aligned memory allocations.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct HostAlignedByteCount(
     // Invariant: this is always a multiple of the host page size.
     usize,
@@ -81,6 +81,12 @@ impl HostAlignedByteCount {
     #[inline]
     pub fn byte_count(self) -> usize {
         self.0
+    }
+
+    /// Returns the number of pages as a `usize`.
+    #[inline]
+    pub fn page_count(self) -> usize {
+        self.0 / host_page_size()
     }
 
     /// Add two aligned byte counts together.

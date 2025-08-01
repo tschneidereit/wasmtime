@@ -2,7 +2,7 @@ use super::{
     InstanceAllocationRequest, InstanceAllocatorImpl, MemoryAllocationIndex, TableAllocationIndex,
 };
 use crate::prelude::*;
-use crate::runtime::vm::CompiledModuleId;
+use crate::runtime::vm::{CompiledModuleId, KeepResidentState};
 use crate::runtime::vm::instance::RuntimeMemoryCreator;
 use crate::runtime::vm::memory::{DefaultMemoryCreator, Memory};
 use crate::runtime::vm::mpk::ProtectionKey;
@@ -147,6 +147,7 @@ unsafe impl InstanceAllocatorImpl for OnDemandInstanceAllocator {
         _memory_index: Option<DefinedMemoryIndex>,
         allocation_index: MemoryAllocationIndex,
         _memory: Memory,
+        _keep_resident_state: &mut KeepResidentState,
     ) {
         debug_assert_eq!(allocation_index, MemoryAllocationIndex::default());
         // Normal destructors do all the necessary clean up.
@@ -176,6 +177,7 @@ unsafe impl InstanceAllocatorImpl for OnDemandInstanceAllocator {
         _table_index: DefinedTableIndex,
         allocation_index: TableAllocationIndex,
         _table: Table,
+        _keep_resident_state: &mut KeepResidentState,
     ) {
         debug_assert_eq!(allocation_index, TableAllocationIndex::default());
         // Normal destructors do all the necessary clean up.

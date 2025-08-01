@@ -3,7 +3,7 @@ use crate::memory::{LinearMemory, MemoryCreator};
 use crate::prelude::*;
 use crate::runtime::vm::mpk::ProtectionKey;
 use crate::runtime::vm::{
-    CompiledModuleId, InstanceAllocationRequest, InstanceAllocatorImpl, Memory,
+    CompiledModuleId, InstanceAllocationRequest, InstanceAllocatorImpl, KeepResidentState, Memory,
     MemoryAllocationIndex, MemoryBase, ModuleRuntimeInfo, OnDemandInstanceAllocator,
     RuntimeLinearMemory, RuntimeMemoryCreator, SharedMemory, Table, TableAllocationIndex,
 };
@@ -189,9 +189,10 @@ unsafe impl InstanceAllocatorImpl for SingleMemoryInstance<'_> {
         memory_index: Option<DefinedMemoryIndex>,
         allocation_index: MemoryAllocationIndex,
         memory: Memory,
+        keep_resident_state: &mut KeepResidentState,
     ) {
         self.ondemand
-            .deallocate_memory(memory_index, allocation_index, memory)
+            .deallocate_memory(memory_index, allocation_index, memory, keep_resident_state)
     }
 
     unsafe fn allocate_table(
@@ -209,9 +210,10 @@ unsafe impl InstanceAllocatorImpl for SingleMemoryInstance<'_> {
         table_index: DefinedTableIndex,
         allocation_index: TableAllocationIndex,
         table: Table,
+        keep_resident_state: &mut KeepResidentState,
     ) {
         self.ondemand
-            .deallocate_table(table_index, allocation_index, table)
+            .deallocate_table(table_index, allocation_index, table, keep_resident_state)
     }
 
     #[cfg(feature = "async")]

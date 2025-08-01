@@ -124,16 +124,6 @@ pub struct MemoryPool {
     /// NB: this is needed for validation but does not affect the pool's size.
     memories_per_instance: usize,
 
-    /// How much linear memory, in bytes, to keep resident after resetting for
-    /// use with the next instance. This much memory will be `memset` to zero
-    /// when a linear memory is deallocated.
-    ///
-    /// Memory exceeding this amount in the wasm linear memory will be released
-    /// with `madvise` back to the kernel.
-    ///
-    /// Only applicable on Linux.
-    pub(super) keep_resident: HostAlignedByteCount,
-
     /// Keep track of protection keys handed out to initialized stores; this
     /// allows us to round-robin the assignment of stores to stripes.
     next_available_pkey: AtomicUsize,
@@ -245,9 +235,6 @@ impl MemoryPool {
             image_slots,
             layout,
             memories_per_instance: usize::try_from(config.limits.max_memories_per_module).unwrap(),
-            keep_resident: HostAlignedByteCount::new_rounded_up(
-                config.linear_memory_keep_resident,
-            )?,
             next_available_pkey: AtomicUsize::new(0),
         };
 

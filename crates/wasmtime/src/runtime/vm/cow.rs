@@ -9,7 +9,9 @@ use super::sys::DecommitBehavior;
 use crate::prelude::*;
 use crate::runtime::vm::sys::pagemap::dirty_pages_in_region;
 use crate::runtime::vm::sys::vm::{self, MemoryImageSource};
-use crate::runtime::vm::{HostAlignedByteCount, MmapOffset, MmapVec, host_page_size};
+use crate::runtime::vm::{
+    host_page_size, HostAlignedByteCount, KeepResidentState, MmapOffset, MmapVec,
+};
 use alloc::sync::Arc;
 use core::ops::Range;
 use core::ptr;
@@ -506,13 +508,13 @@ impl MemoryImageSlot {
     #[allow(dead_code)] // ignore warnings as this is only used in some cfgs
     pub(crate) fn clear_and_remain_ready(
         &mut self,
-        keep_resident: HostAlignedByteCount,
+        keep_resident_state: &mut KeepResidentState,
         decommit: impl FnMut(*mut u8, usize),
     ) -> Result<()> {
         assert!(self.dirty);
 
         unsafe {
-            self.reset_all_memory_contents(keep_resident, decommit)?;
+            self.reset_all_memory_contents(keep_resident_state, decommit)?;
         }
 
         self.dirty = false;
@@ -522,7 +524,7 @@ impl MemoryImageSlot {
     #[allow(dead_code)] // ignore warnings as this is only used in some cfgs
     unsafe fn reset_all_memory_contents(
         &mut self,
-        keep_resident: HostAlignedByteCount,
+        keep_resident_state: &mut KeepResidentState,
         decommit: impl FnMut(*mut u8, usize),
     ) -> Result<()> {
         match vm::decommit_behavior() {
@@ -536,7 +538,7 @@ impl MemoryImageSlot {
                 self.reset_with_anon_memory()
             }
             DecommitBehavior::RestoreOriginalMapping => {
-                self.reset_with_original_mapping(keep_resident, decommit);
+                self.reset_with_original_mapping(keep_resident_state, decommit);
                 Ok(())
             }
         }
@@ -545,14 +547,18 @@ impl MemoryImageSlot {
     #[allow(dead_code)] // ignore warnings as this is only used in some cfgs
     unsafe fn reset_with_original_mapping(
         &mut self,
-        keep_resident: HostAlignedByteCount,
+        keep_resident_state: &mut KeepResidentState,
         mut decommit: impl FnMut(*mut u8, usize),
     ) {
         // If possible, use `dirty_pages_in_region` to find specific dirty pages instead of
         // unconditionally keeping the first `keep_resident` resident.
-        if !keep_resident.is_zero() {
-            let dirty_pages =
-                dirty_pages_in_region(self.base.as_mut_ptr(), self.accessible, keep_resident);
+        let budget = keep_resident_state.linear_memory_budget();
+        if !keep_resident_state.regions_buffer.is_empty() {
+            let dirty_pages = dirty_pages_in_region(
+                self.base.as_mut_ptr(),
+                self.accessible.min(budget),
+                keep_resident_state.regions_buffer(),
+            );
             if let Ok(dirty_pages) = dirty_pages {
                 let (image_start, image_end, image_source_offset, file) = match &self.image {
                     Some(image) => {
@@ -564,9 +570,16 @@ impl MemoryImageSlot {
                         let image_end = image_start
                             .checked_add(image.len.byte_count() as u64)
                             .expect("image is in bounds");
-                        let image_slice =
-                            core::slice::from_raw_parts(image.source_ptr as *const u8, image.len.byte_count());
-                        (image_start, image_end, image.source_offset, Some(image_slice))
+                        let image_slice = core::slice::from_raw_parts(
+                            image.source_ptr as *const u8,
+                            image.len.byte_count(),
+                        );
+                        (
+                            image_start,
+                            image_end,
+                            image.source_offset,
+                            Some(image_slice),
+                        )
                     }
                     None => {
                         // To simplify things in the loop below, treat an absent image
@@ -579,30 +592,40 @@ impl MemoryImageSlot {
                         (heap_end, heap_end, 0, None)
                     }
                 };
+
+                let mut kept_resident = HostAlignedByteCount::ZERO;
                 for region in dirty_pages.regions.iter() {
-                    let region_len = (region.end - region.start) as usize;
-                    let region_slice =
-                        core::slice::from_raw_parts_mut(region.start as *mut u8, region_len);
+                    let region_len =
+                        HostAlignedByteCount::new((region.end - region.start) as usize)
+                            .expect("Regions are always page-aligned");
+                    kept_resident = kept_resident
+                        .checked_add(region_len)
+                        .expect("region length fits in kept resident budget");
+                    let region_slice = core::slice::from_raw_parts_mut(
+                        region.start as *mut u8,
+                        region_len.byte_count(),
+                    );
 
                     // Each region might start and end before or after the image, so we need to
                     // do up to three different operations to restore the original contents:
 
                     // 1. Zero out the part before the image (if any).
                     if region.start < image_start {
-                        let len = region.end.min(image_start) - region.start;
-                        region_slice[..len as usize].fill(0);
+                        let len = (region.end.min(image_start) - region.start) as usize;
+                        region_slice[..len].fill(0);
                     }
 
                     // 2. Copy the original bytes from the image for the part that overlaps with the image.
                     if region.start < image_end && region.end > image_start {
                         let start = region.start.max(image_start);
                         let end = region.end.min(image_end);
-                        let mut region_slice = core::slice::from_raw_parts_mut(
-                            start as *mut u8,
-                            (end - start) as usize,
-                        );
-                        let image_offset = start - image_start + image_source_offset;
-                        region_slice.write(&file.unwrap()[image_offset as usize..(image_offset + end - start) as usize]).unwrap();
+                        let len = (end - start) as usize;
+                        let mut region_slice =
+                            core::slice::from_raw_parts_mut(start as *mut u8, len);
+                        let image_offset = (start - image_start + image_source_offset) as usize;
+                        region_slice
+                            .write(&file.unwrap()[image_offset..image_offset + len])
+                            .unwrap();
                     }
 
                     // 3. Zero out the part after the image (if any).
@@ -622,10 +645,13 @@ impl MemoryImageSlot {
                     decommit,
                 );
 
+                keep_resident_state.update_budget(kept_resident);
+
                 return;
             }
         }
 
+        let keep_resident = keep_resident_state.linear_memory_budget();
         match &self.image {
             Some(image) => {
                 if image.linear_memory_offset < keep_resident {
@@ -875,7 +901,9 @@ mod test {
     use super::*;
     use crate::runtime::vm::mmap::{AlignedLength, Mmap};
     use crate::runtime::vm::sys::vm::decommit_pages;
-    use crate::runtime::vm::{HostAlignedByteCount, host_page_size};
+    use crate::runtime::vm::{
+        host_page_size, HostAlignedByteCount, PoolingInstanceAllocatorConfig,
+    };
     use std::sync::Arc;
     use wasmtime_environ::{IndexType, Limits, Memory};
 
@@ -970,7 +998,7 @@ mod test {
         // instantiate again; we should see zeroes, even as the
         // reuse-anon-mmap-opt kicks in
         memfd
-            .clear_and_remain_ready(HostAlignedByteCount::ZERO, |ptr, len| unsafe {
+            .clear_and_remain_ready(&mut KeepResidentState::default(), |ptr, len| unsafe {
                 decommit_pages(ptr, len).unwrap()
             })
             .unwrap();
@@ -1011,7 +1039,7 @@ mod test {
 
         // Clear and re-instantiate same image
         memfd
-            .clear_and_remain_ready(HostAlignedByteCount::ZERO, |ptr, len| unsafe {
+            .clear_and_remain_ready(&mut KeepResidentState::default(), |ptr, len| unsafe {
                 decommit_pages(ptr, len).unwrap()
             })
             .unwrap();
@@ -1023,7 +1051,7 @@ mod test {
 
         // Clear and re-instantiate no image
         memfd
-            .clear_and_remain_ready(HostAlignedByteCount::ZERO, |ptr, len| unsafe {
+            .clear_and_remain_ready(&mut KeepResidentState::default(), |ptr, len| unsafe {
                 decommit_pages(ptr, len).unwrap()
             })
             .unwrap();
@@ -1034,7 +1062,7 @@ mod test {
 
         // Clear and re-instantiate image again
         memfd
-            .clear_and_remain_ready(HostAlignedByteCount::ZERO, |ptr, len| unsafe {
+            .clear_and_remain_ready(&mut KeepResidentState::default(), |ptr, len| unsafe {
                 decommit_pages(ptr, len).unwrap()
             })
             .unwrap();
@@ -1047,7 +1075,7 @@ mod test {
         // Create another image with different data.
         let image2 = Arc::new(create_memfd_with_data(page_size, &[10, 11, 12, 13]).unwrap());
         memfd
-            .clear_and_remain_ready(HostAlignedByteCount::ZERO, |ptr, len| unsafe {
+            .clear_and_remain_ready(&mut KeepResidentState::default(), |ptr, len| unsafe {
                 decommit_pages(ptr, len).unwrap()
             })
             .unwrap();
@@ -1060,7 +1088,7 @@ mod test {
         // Instantiate the original image again; we should notice it's
         // a different image and not reuse the mappings.
         memfd
-            .clear_and_remain_ready(HostAlignedByteCount::ZERO, |ptr, len| unsafe {
+            .clear_and_remain_ready(&mut KeepResidentState::default(), |ptr, len| unsafe {
                 decommit_pages(ptr, len).unwrap()
             })
             .unwrap();
@@ -1107,8 +1135,17 @@ mod test {
                     })
                 };
 
+                let mut regions_buffer =
+                    vec![MaybeUninit::uninit(); amt_to_memset.byte_count() / page_size];
+
+                let config = PoolingInstanceAllocatorConfig {
+                    instance_keep_resident: amt_to_memset.byte_count(),
+                    ..PoolingInstanceAllocatorConfig::default()
+                };
+                let mut state =
+                    KeepResidentState::from_config(&config);
                 memfd
-                    .clear_and_remain_ready(amt_to_memset, |ptr, len| unsafe {
+                    .clear_and_remain_ready(&mut state, |ptr, len| unsafe {
                         decommit_pages(ptr, len).unwrap()
                     })
                     .unwrap();
@@ -1128,10 +1165,16 @@ mod test {
                     }
                 });
             }
+
+            let mut regions_buffer =
+                vec![MaybeUninit::uninit(); amt_to_memset.byte_count() / page_size];
+            let mut state =
+                KeepResidentState::from_config(&config);
             memfd
-                .clear_and_remain_ready(amt_to_memset, |ptr, len| unsafe {
-                    decommit_pages(ptr, len).unwrap()
-                })
+                .clear_and_remain_ready(
+                    &mut state,
+                    |ptr, len| unsafe { decommit_pages(ptr, len).unwrap() },
+                )
                 .unwrap();
         }
     }
@@ -1170,7 +1213,7 @@ mod test {
         }
 
         memfd
-            .clear_and_remain_ready(HostAlignedByteCount::ZERO, |ptr, len| unsafe {
+            .clear_and_remain_ready(&mut KeepResidentState::default(), |ptr, len| unsafe {
                 decommit_pages(ptr, len).unwrap()
             })
             .unwrap();
@@ -1195,7 +1238,7 @@ mod test {
         }
 
         memfd
-            .clear_and_remain_ready(HostAlignedByteCount::ZERO, |ptr, len| unsafe {
+            .clear_and_remain_ready(&mut KeepResidentState::default(), |ptr, len| unsafe {
                 decommit_pages(ptr, len).unwrap()
             })
             .unwrap();
@@ -1220,7 +1263,7 @@ mod test {
         }
 
         memfd
-            .clear_and_remain_ready(HostAlignedByteCount::ZERO, |ptr, len| unsafe {
+            .clear_and_remain_ready(&mut KeepResidentState::default(), |ptr, len| unsafe {
                 decommit_pages(ptr, len).unwrap()
             })
             .unwrap();

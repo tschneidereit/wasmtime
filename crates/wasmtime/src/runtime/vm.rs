@@ -41,6 +41,7 @@ use core::ops::Deref;
 use core::ops::DerefMut;
 use core::ptr::NonNull;
 use core::sync::atomic::{AtomicUsize, Ordering};
+use std::mem::MaybeUninit;
 use wasmtime_environ::{
     DefinedFuncIndex, DefinedMemoryIndex, HostPtr, VMOffsets, VMSharedTypeIndex,
 };
@@ -147,6 +148,7 @@ pub use crate::runtime::vm::async_yield::*;
 
 #[cfg(feature = "gc-null")]
 mod send_sync_unsafe_cell;
+use crate::runtime::vm::sys::pagemap::PageRegion;
 #[cfg(feature = "gc-null")]
 pub use send_sync_unsafe_cell::SendSyncUnsafeCell;
 
@@ -495,5 +497,99 @@ impl fmt::Display for WasmFault {
             "memory fault at wasm address 0x{:x} in linear memory of size 0x{:x}",
             self.wasm_address, self.memory_size,
         )
+    }
+}
+
+#[derive(Default)]
+pub struct KeepResidentState<'a> {
+    /// Configuration to read budgets from.
+    #[cfg(feature = "pooling-allocator")]
+    config: Option<&'a PoolingInstanceAllocatorConfig>,
+    /// The remaining budget for keeping page regions resident.
+    #[cfg(feature = "pooling-allocator")]
+    remaining_budget: Option<HostAlignedByteCount>,
+    /// Out-buffer for the `pagemap_scan` ioctl.
+    #[cfg(feature = "pooling-allocator")]
+    regions_buffer: Vec<MaybeUninit<PageRegion>>,
+}
+
+impl KeepResidentState<'_> {
+    #[cfg(feature = "pooling-allocator")]
+    fn from_config(config: &PoolingInstanceAllocatorConfig) -> KeepResidentState {
+        let (initial_budget, buffer) = match config.instance_keep_resident {
+            budget if budget > 0 => {
+                let budget = HostAlignedByteCount::new_rounded_up(budget)
+                    .expect("Invalid `instance_keep_resident` budget");
+                // Allocate a buffer for the `pagemap_scan` ioctl.
+                // The buffer size is half the budget in pages, as that's the maximum number of
+                // regions that can be returned by the ioctl, in the worst case where every second
+                // page is resident.
+                let buffer = vec![MaybeUninit::uninit(); budget.page_count() / 2];
+                (Some(budget), buffer)
+            }
+            _ => (None, vec![MaybeUninit::uninit(); 0]),
+        };
+        KeepResidentState {
+            config: Some(config),
+            remaining_budget: initial_budget,
+            regions_buffer: buffer,
+        }
+    }
+
+    fn regions_buffer(&mut self) -> &mut [MaybeUninit<PageRegion>] {
+        #[cfg(feature = "pooling-allocator")]
+        {
+            self.regions_buffer.as_mut_slice()
+        }
+        #[cfg(not(feature = "pooling-allocator"))]
+        {
+            &[]
+        }
+    }
+
+    fn linear_memory_budget(&self) -> HostAlignedByteCount {
+        get_budget(self, |config| config.linear_memory_keep_resident)
+    }
+
+    fn table_budget(&self) -> HostAlignedByteCount {
+        get_budget(self, |config| config.table_keep_resident)
+    }
+
+    fn update_budget(&mut self, delta: HostAlignedByteCount) {
+        #[cfg(feature = "pooling-allocator")]
+        {
+            match self.remaining_budget {
+                Some(remaining_budget) => {
+                    self.remaining_budget = Some(
+                        remaining_budget
+                            .checked_add(delta)
+                            .expect("`update_budget` called with invalid delta"),
+                    );
+                }
+                _ => {}
+            }
+        }
+        #[cfg(not(feature = "pooling-allocator"))]
+        {
+            unreachable!("Memory budget should only be updated by the pooling allocator");
+        }
+    }
+}
+fn get_budget(
+    state: &KeepResidentState,
+    extract_setting: fn(&PoolingInstanceAllocatorConfig) -> usize,
+) -> HostAlignedByteCount {
+    #[cfg(feature = "pooling-allocator")]
+    {
+        match (state.remaining_budget, state.config) {
+            (Some(remaining_budget), _) => remaining_budget,
+            (None, Some(config)) => HostAlignedByteCount::new_rounded_up(extract_setting(config))
+                .expect("Invalid budget"),
+            (None, None) => HostAlignedByteCount::ZERO,
+        }
+    }
+    #[cfg(not(feature = "pooling-allocator"))]
+    {
+        HostAlignedByteCount::ZERO
     }
 }

@@ -1,17 +1,17 @@
 use super::{
-    TableAllocationIndex,
     index_allocator::{SimpleIndexAllocator, SlotId},
+    TableAllocationIndex,
 };
+use crate::runtime::vm::sys::pagemap::dirty_pages_in_region;
 use crate::runtime::vm::sys::vm::commit_pages;
 use crate::runtime::vm::{
-    InstanceAllocationRequest, Mmap, PoolingInstanceAllocatorConfig, SendSyncPtr, Table,
-    mmap::AlignedLength,
+    mmap::AlignedLength, InstanceAllocationRequest, KeepResidentState, Mmap,
+    PoolingInstanceAllocatorConfig, SendSyncPtr, Table,
 };
 use crate::{prelude::*, vm::HostAlignedByteCount};
 use std::mem;
 use std::ptr::NonNull;
 use wasmtime_environ::{Module, Tunables};
-use crate::runtime::vm::sys::pagemap::dirty_pages_in_region;
 
 /// Represents a pool of WebAssembly tables.
 ///
@@ -24,7 +24,6 @@ pub struct TablePool {
     table_size: HostAlignedByteCount,
     max_total_tables: usize,
     tables_per_instance: usize,
-    keep_resident: HostAlignedByteCount,
     table_elements: usize,
 }
 
@@ -53,7 +52,6 @@ impl TablePool {
             table_size,
             max_total_tables,
             tables_per_instance,
-            keep_resident: HostAlignedByteCount::new_rounded_up(config.table_keep_resident)?,
             table_elements: config.limits.table_elements,
         })
     }
@@ -190,6 +188,7 @@ impl TablePool {
         &self,
         allocation_index: TableAllocationIndex,
         table: &mut Table,
+        keep_resident_state: &mut KeepResidentState,
         mut decommit: impl FnMut(*mut u8, usize),
     ) {
         assert!(table.is_static());
@@ -201,29 +200,33 @@ impl TablePool {
         // a host page smaller than usize::MAX.
         let size = HostAlignedByteCount::new_rounded_up(table.size() * mem::size_of::<*mut u8>())
             .expect("table entry size doesn't overflow");
+        let size_to_memset = size.min(keep_resident_state.table_budget());
 
-        // If possible, use `dirty_pages_in_region` to find specific dirty pages instead of 
+        // If possible, use `dirty_pages_in_region` to find specific dirty pages instead of
         // unconditionally zeroing `self.keep_resident` bytes at the table's start.
-        match dirty_pages_in_region(base, size, self.keep_resident) {
+        match dirty_pages_in_region(base, size_to_memset, keep_resident_state.regions_buffer()) {
             Ok(dirty_pages) => {
+                let mut kept_resident = 0;
                 // `memset` dirty pages up to `keep_resident` bytes.
                 for region in dirty_pages.regions.iter() {
-                    std::ptr::write_bytes(
-                        region.start as *mut u8,
-                        0,
-                        (region.end - region.start) as usize,
-                    );
+                    let len = (region.end - region.start) as usize;
+                    std::ptr::write_bytes(region.start as *mut u8, 0, len);
+                    kept_resident += len;
                 }
-                
+
                 // And decommit the rest of it.
                 decommit(
                     base.add(dirty_pages.checked_bytes),
                     size.byte_count() - dirty_pages.checked_bytes,
                 );
+                
+                let kept_resident = HostAlignedByteCount::new(kept_resident)
+                    .expect("Memory is always kept resident by the page");
+
+                keep_resident_state.update_budget(kept_resident);
             }
             Err(_) => {
                 // `memset` the first `keep_resident` bytes.
-                let size_to_memset = size.min(self.keep_resident);
                 std::ptr::write_bytes(base, 0, size_to_memset.byte_count());
 
                 // And decommit the rest of it.

@@ -2,7 +2,7 @@
 //!
 //! For other platforms, a no-op implementation is provided.
 
-pub use internal::{dirty_pages_in_region, dirty_pages_scan_supported};
+pub use internal::dirty_pages_in_region;
 use std::fmt;
 
 #[allow(dead_code)]
@@ -52,19 +52,16 @@ impl fmt::Display for Categories {
 
 #[cfg(not(target_os = "linux"))]
 mod internal {
-    use super::DirtyPages;
+    use std::mem::MaybeUninit;
+    use super::{DirtyPages, PageRegion};
     use crate::prelude::*;
     use crate::runtime::vm::HostAlignedByteCount;
-
-    pub fn dirty_pages_scan_supported() -> bool {
-        false
-    }
 
     #[allow(unused_variables)]
     pub fn dirty_pages_in_region<'a>(
         base: *const u8,
         len: HostAlignedByteCount,
-        max_bytes: HostAlignedByteCount,
+        regions_buffer: &mut [MaybeUninit<PageRegion>],
     ) -> Result<DirtyPages<'a>> {
         Err(anyhow!("pagemap_scan ioctl not supported on this platform"))
     }
@@ -82,15 +79,18 @@ mod internal {
     use std::sync::LazyLock;
     use std::{fmt, ptr};
 
-    pub fn dirty_pages_scan_supported() -> bool {
-        PAGEMAP.is_some()
-    }
-
     pub fn dirty_pages_in_region(
         base: *const u8,
         len: HostAlignedByteCount,
         regions_buffer: &mut [MaybeUninit<PageRegion>],
     ) -> Result<DirtyPages> {
+        if len.byte_count() == 0 || regions_buffer.is_empty() {
+            return Ok(DirtyPages {
+                regions: &[],
+                checked_bytes: 0,
+            });
+        }
+
         let pagemap = match &*PAGEMAP {
             Some(pagemap) => pagemap,
             None => return Err(anyhow!("pagemap_scan ioctl not supported")),

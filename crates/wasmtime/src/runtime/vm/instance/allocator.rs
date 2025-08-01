@@ -5,7 +5,7 @@ use crate::runtime::vm::instance::{Instance, InstanceHandle};
 use crate::runtime::vm::memory::Memory;
 use crate::runtime::vm::mpk::ProtectionKey;
 use crate::runtime::vm::table::Table;
-use crate::runtime::vm::{CompiledModuleId, ModuleRuntimeInfo, VMFuncRef, VMGcRef, VMStore};
+use crate::runtime::vm::{CompiledModuleId, KeepResidentState, ModuleRuntimeInfo, VMFuncRef, VMGcRef, VMStore};
 use crate::store::{AutoAssertNoGc, InstanceId, StoreOpaque};
 use crate::vm::VMGlobalDefinition;
 use core::ptr::NonNull;
@@ -282,6 +282,7 @@ pub unsafe trait InstanceAllocatorImpl {
         memory_index: Option<DefinedMemoryIndex>,
         allocation_index: MemoryAllocationIndex,
         memory: Memory,
+        keep_resident_state: &mut KeepResidentState,
     );
 
     /// Allocate a table for an instance.
@@ -310,6 +311,7 @@ pub unsafe trait InstanceAllocatorImpl {
         table_index: DefinedTableIndex,
         allocation_index: TableAllocationIndex,
         table: Table,
+        keep_resident_state: &mut KeepResidentState,
     );
 
     /// Allocates a fiber stack for calling async functions on.
@@ -371,6 +373,14 @@ pub unsafe trait InstanceAllocatorImpl {
 
     /// Allow access to memory regions protected by any protection key.
     fn allow_all_pkeys(&self);
+
+    /// Get the initial state for keeping resident memory.
+    /// 
+    /// This is used in the pooling allocator to keep track of the overall budget
+    /// for resident memory for an instance.
+    fn initial_keep_resident_state(&self) -> KeepResidentState {
+        KeepResidentState::default()
+    }
 }
 
 /// A thing that can allocate instances.
@@ -441,8 +451,8 @@ pub trait InstanceAllocator: InstanceAllocatorImpl {
         })() {
             Ok(_) => Ok(Instance::new(request, memories, tables, &module.memories)),
             Err(e) => {
-                self.deallocate_memories(&mut memories);
-                self.deallocate_tables(&mut tables);
+                self.deallocate_memories(&mut memories, &mut KeepResidentState::default());
+                self.deallocate_tables(&mut tables, &mut KeepResidentState::default());
                 self.decrement_core_instance_count();
                 Err(e)
             }
@@ -458,8 +468,7 @@ pub trait InstanceAllocator: InstanceAllocatorImpl {
     ///
     /// The instance must have previously been allocated by `Self::allocate`.
     unsafe fn deallocate_module(&self, handle: &mut InstanceHandle) {
-        self.deallocate_memories(&mut handle.instance_mut().memories);
-        self.deallocate_tables(&mut handle.instance_mut().tables);
+        self.deallocate_memories_and_tables(handle);
 
         let layout = Instance::alloc_layout(handle.instance().offsets());
         let ptr = handle.instance.take().unwrap();
@@ -467,6 +476,12 @@ pub trait InstanceAllocator: InstanceAllocatorImpl {
         alloc::alloc::dealloc(ptr.as_ptr().cast(), layout);
 
         self.decrement_core_instance_count();
+    }
+
+    unsafe fn deallocate_memories_and_tables(&self, handle: &mut InstanceHandle) {
+        let mut keep_resident_state = self.initial_keep_resident_state();
+        self.deallocate_memories(&mut handle.instance_mut().memories, &mut keep_resident_state);
+        self.deallocate_tables(&mut handle.instance_mut().tables, &mut keep_resident_state);
     }
 
     /// Allocate the memories for the given instance allocation request, pushing
@@ -512,13 +527,14 @@ pub trait InstanceAllocator: InstanceAllocatorImpl {
     unsafe fn deallocate_memories(
         &self,
         memories: &mut PrimaryMap<DefinedMemoryIndex, (MemoryAllocationIndex, Memory)>,
+        keep_resident_state: &mut KeepResidentState,
     ) {
         for (memory_index, (allocation_index, memory)) in mem::take(memories) {
             // Because deallocating memory is infallible, we don't need to worry
             // about leaking subsequent memories if the first memory failed to
             // deallocate. If deallocating memory ever becomes fallible, we will
             // need to be careful here!
-            self.deallocate_memory(Some(memory_index), allocation_index, memory);
+            self.deallocate_memory(Some(memory_index), allocation_index, memory, keep_resident_state);
         }
     }
 
@@ -560,9 +576,10 @@ pub trait InstanceAllocator: InstanceAllocatorImpl {
     unsafe fn deallocate_tables(
         &self,
         tables: &mut PrimaryMap<DefinedTableIndex, (TableAllocationIndex, Table)>,
+        keep_resident_state: &mut KeepResidentState,
     ) {
         for (table_index, (allocation_index, table)) in mem::take(tables) {
-            self.deallocate_table(table_index, allocation_index, table);
+            self.deallocate_table(table_index, allocation_index, table, keep_resident_state);
         }
     }
 }

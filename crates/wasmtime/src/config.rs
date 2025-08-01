@@ -2263,7 +2263,7 @@ impl Config {
                 config.stack_size = stack_size;
                 config.async_stack_zeroing = stack_zeroing;
                 Ok(Box::new(crate::runtime::vm::PoolingInstanceAllocator::new(
-                    &config, tunables,
+                    config, tunables,
                 )?))
             }
         }
@@ -3041,6 +3041,32 @@ impl PoolingAllocationConfig {
     /// Defaults to `1`.
     pub fn decommit_batch_size(&mut self, batch_size: usize) -> &mut Self {
         self.config.decommit_batch_size = batch_size;
+        self
+    }
+
+    /// How much memory, in bytes, to keep resident for an instance after
+    /// deallocation for reuse with the same instance type.
+    ///
+    /// This option is only applicable on Linux and has no effect on other
+    /// platforms.
+    ///
+    /// By default Wasmtime will use `madvise` to reset the entire contents of
+    /// each linear memory, table, and async stack back to zero when an
+    /// instance is deallocated. This option can be used to instead use
+    /// `memset` or explicit copying to reset memory to its initial contents.
+    /// This usually results in fewer page faults, and fewer changes to
+    /// virtual memory mappings, when a slot is reused.
+    ///
+    /// In combination with certain Linux kernel versions, the identification
+    /// of pages to keep resident can be precise, meaning that the exact set
+    /// of pages that are used by the instance will be reset. This can
+    /// substantially reduce both memory usage and overall performance in
+    /// scenarios involving many, short-lived instances.
+    ///
+    /// Note that this setting overrides the individual settings for memories,
+    /// tables, and async stacks.
+    pub fn instance_keep_resident(&mut self, size: usize) -> &mut Self {
+        self.config.instance_keep_resident = size;
         self
     }
 
