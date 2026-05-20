@@ -431,6 +431,7 @@ impl DataFlowGraph {
     /// Resolve value aliases.
     ///
     /// Find the original SSA value that `value` aliases.
+    #[inline]
     pub fn resolve_aliases(&self, value: Value) -> Value {
         resolve_aliases(&self.values, value)
     }

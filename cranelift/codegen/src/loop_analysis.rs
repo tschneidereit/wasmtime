@@ -40,18 +40,22 @@ impl LoopLevel {
     const INVALID: u8 = u8::MAX;
 
     /// Get the root level (no loop).
+    #[inline]
     pub fn root() -> Self {
         Self(0)
     }
     /// Get the loop level.
+    #[inline]
     pub fn level(self) -> usize {
         self.0 as usize
     }
     /// Invalid loop level.
+    #[inline]
     pub fn invalid() -> Self {
         Self(Self::INVALID)
     }
     /// One loop level deeper.
+    #[inline]
     pub fn inc(self) -> Self {
         if self.0 == (Self::INVALID - 1) {
             self
@@ -60,6 +64,7 @@ impl LoopLevel {
         }
     }
     /// A clamped loop level from a larger-width (usize) depth.
+    #[inline]
     pub fn clamped(level: usize) -> Self {
         Self(
             u8::try_from(core::cmp::min(level, (Self::INVALID as usize) - 1))
@@ -106,16 +111,19 @@ impl LoopAnalysis {
     ///
     /// The characteristic property of a loop header block is that it dominates some of its
     /// predecessors.
+    #[inline]
     pub fn loop_header(&self, lp: Loop) -> Block {
         self.loops[lp].header
     }
 
     /// Return the eventual parent of a loop in the loop tree.
+    #[inline]
     pub fn loop_parent(&self, lp: Loop) -> Option<Loop> {
         self.loops[lp].parent.expand()
     }
 
     /// Return the innermost loop for a given block.
+    #[inline]
     pub fn innermost_loop(&self, block: Block) -> Option<Loop> {
         self.block_loop_map[block].expand()
     }
@@ -153,6 +161,7 @@ impl LoopAnalysis {
     }
 
     /// Returns the loop-nest level of a given block.
+    #[inline]
     pub fn loop_level(&self, block: Block) -> LoopLevel {
         self.innermost_loop(block)
             .map_or(LoopLevel(0), |lp| self.loops[lp].level)

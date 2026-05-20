@@ -275,7 +275,7 @@ pub fn do_remove_constant_phis(func: &mut Function, domtree: &mut DominatorTree)
         let formals = func.dfg.block_params(b);
         for formal in formals {
             let mb_old_absval = state.absvals.insert(*formal, AbstractValue::None);
-            assert!(mb_old_absval.is_none());
+            debug_assert!(mb_old_absval.is_none());
         }
     }
 
@@ -289,14 +289,14 @@ pub fn do_remove_constant_phis(func: &mut Function, domtree: &mut DominatorTree)
         for src in domtree.cfg_rpo().copied() {
             let src_summary = &summaries[src];
             for edge in &src_summary.dests {
-                assert!(edge.block != entry_block);
+                debug_assert!(edge.block != entry_block);
                 // By contrast, the dst block must have a summary.  Phase 1
                 // will have only included an entry in `src_summary.dests` if
                 // that branch/jump carried at least one parameter.  So the
                 // dst block does take parameters, so it must have a summary.
                 let dst_summary = &summaries[edge.block];
                 let dst_formals = &dst_summary.formals;
-                assert_eq!(edge.args.len(), dst_formals.len());
+                debug_assert_eq!(edge.args.len(), dst_formals.len());
                 for (formal, actual) in dst_formals.iter().zip(edge.args) {
                     // Find the abstract value for `actual`.  If it is a block
                     // formal parameter then the most recent abstract value is

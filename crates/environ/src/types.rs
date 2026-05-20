@@ -245,6 +245,7 @@ impl WasmValType {
     /// Attempt to build a `WasmValType` with the passed number of bits.
     ///
     /// Panics if the number of bits doesn't map to a WASM int type.
+    #[inline]
     pub fn int_from_bits(bits: u8) -> Self {
         match bits {
             32 => Self::I32,
@@ -256,6 +257,7 @@ impl WasmValType {
     /// Returns the contained reference type.
     ///
     /// Panics if the value type is not a vmgcref
+    #[inline]
     pub fn unwrap_ref_type(&self) -> WasmRefType {
         match self {
             WasmValType::Ref(ref_type) => *ref_type,
@@ -387,6 +389,7 @@ impl fmt::Display for EngineOrModuleTypeIndex {
 
 impl EngineOrModuleTypeIndex {
     /// Is this an engine-level type index?
+    #[inline]
     pub fn is_engine_type_index(self) -> bool {
         matches!(self, Self::Engine(_))
     }
@@ -411,11 +414,13 @@ impl EngineOrModuleTypeIndex {
     }
 
     /// Is this an module-level type index?
+    #[inline]
     pub fn is_module_type_index(self) -> bool {
         matches!(self, Self::Module(_))
     }
 
     /// Get the underlying module-level type index, if any.
+    #[inline]
     pub fn as_module_type_index(self) -> Option<ModuleInternedTypeIndex> {
         match self {
             Self::Module(e) => Some(e),
@@ -425,6 +430,7 @@ impl EngineOrModuleTypeIndex {
 
     /// Get the underlying module-level type index, or panic.
     #[track_caller]
+    #[inline]
     pub fn unwrap_module_type_index(self) -> ModuleInternedTypeIndex {
         match self.as_module_type_index() {
             Some(x) => x,
@@ -433,11 +439,13 @@ impl EngineOrModuleTypeIndex {
     }
 
     /// Is this an recgroup-level type index?
+    #[inline]
     pub fn is_rec_group_type_index(self) -> bool {
         matches!(self, Self::RecGroup(_))
     }
 
     /// Get the underlying recgroup-level type index, if any.
+    #[inline]
     pub fn as_rec_group_type_index(self) -> Option<RecGroupRelativeTypeIndex> {
         match self {
             Self::RecGroup(r) => Some(r),
@@ -447,6 +455,7 @@ impl EngineOrModuleTypeIndex {
 
     /// Get the underlying module-level type index, or panic.
     #[track_caller]
+    #[inline]
     pub fn unwrap_rec_group_type_index(self) -> RecGroupRelativeTypeIndex {
         match self.as_rec_group_type_index() {
             Some(x) => x,
