@@ -361,7 +361,7 @@ impl<I: VCodeInst> VCodeBuilder<I> {
     /// Push an instruction for the current BB and current IR inst
     /// within the BB.
     pub fn push(&mut self, insn: I, loc: RelSourceLoc) {
-        assert!(!insn.is_low_level_branch()); // These are not meant to be in VCode.
+        debug_assert!(!insn.is_low_level_branch()); // These are not meant to be in VCode.
         self.vcode.insts.push(insn);
         self.vcode.srclocs.push(loc);
     }
@@ -538,11 +538,11 @@ impl<I: VCodeInst> VCodeBuilder<I> {
             if let Some((dst, src)) = insn.is_move() {
                 // We should never see non-virtual registers present in move
                 // instructions.
-                assert!(
+                debug_assert!(
                     src.is_virtual(),
                     "the real register {src:?} was used as the source of a move instruction"
                 );
-                assert!(
+                debug_assert!(
                     dst.to_reg().is_virtual(),
                     "the real register {:?} was used as the destination of a move instruction",
                     dst.to_reg()

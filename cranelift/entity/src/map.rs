@@ -107,6 +107,7 @@ where
     }
 
     /// Get the element at `k` mutably, if it exists.
+    #[inline]
     pub fn get_mut(&mut self, k: K) -> Option<&mut V> {
         self.elems.get_mut(k.index())
     }
@@ -195,11 +196,13 @@ where
     }
 
     /// Get this map's underlying values as a slice.
+    #[inline]
     pub fn as_values_slice(&self) -> &[V] {
         &self.elems
     }
 
     /// Get this map's default value.
+    #[inline]
     pub fn default_value(&self) -> &V {
         &self.default
     }

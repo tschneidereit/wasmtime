@@ -498,6 +498,7 @@ impl InstructionData {
 
     /// If this is a trapping instruction, get its trap code. Otherwise, return
     /// `None`.
+    #[inline]
     pub fn trap_code(&self) -> Option<TrapCode> {
         match *self {
             Self::CondTrap { code, .. }
@@ -509,6 +510,7 @@ impl InstructionData {
 
     /// If this is a control-flow instruction depending on an integer condition, gets its
     /// condition.  Otherwise, return `None`.
+    #[inline]
     pub fn cond_code(&self) -> Option<IntCC> {
         match self {
             &InstructionData::IntCompare { cond, .. }
@@ -519,6 +521,7 @@ impl InstructionData {
 
     /// If this is a control-flow instruction depending on a floating-point condition, gets its
     /// condition.  Otherwise, return `None`.
+    #[inline]
     pub fn fp_cond_code(&self) -> Option<FloatCC> {
         match self {
             &InstructionData::FloatCompare { cond, .. } => Some(cond),
@@ -538,6 +541,7 @@ impl InstructionData {
     }
 
     /// If this is an atomic read/modify/write instruction, return its subopcode.
+    #[inline]
     pub fn atomic_rmw_op(&self) -> Option<ir::AtomicRmwOp> {
         match self {
             &InstructionData::AtomicRmw { op, .. } => Some(op),
@@ -546,6 +550,7 @@ impl InstructionData {
     }
 
     /// If this is a load/store instruction, returns its immediate offset.
+    #[inline]
     pub fn load_store_offset(&self) -> Option<i32> {
         match self {
             &InstructionData::Load { offset, .. }
@@ -557,6 +562,7 @@ impl InstructionData {
     }
 
     /// If this is a load/store instruction, return its memory flags.
+    #[inline]
     pub fn memflags(&self) -> Option<MemFlagsData> {
         match self {
             &InstructionData::Load { flags, .. }
@@ -570,6 +576,7 @@ impl InstructionData {
     }
 
     /// If this instruction references a stack slot, return it
+    #[inline]
     pub fn stack_slot(&self) -> Option<StackSlot> {
         match self {
             &InstructionData::StackStore { stack_slot, .. }

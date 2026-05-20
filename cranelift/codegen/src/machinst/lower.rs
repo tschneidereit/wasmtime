@@ -1670,11 +1670,11 @@ impl<'func, I: VCodeInst> Lower<'func, I> {
     /// for the input produced by the sunk instruction), otherwise the
     /// side-effect will occur twice.
     pub fn sink_inst(&mut self, ir_inst: Inst) {
-        assert!(has_lowering_side_effect(self.f, ir_inst));
-        assert!(self.cur_scan_entry_color.is_some());
+        debug_assert!(has_lowering_side_effect(self.f, ir_inst));
+        debug_assert!(self.cur_scan_entry_color.is_some());
 
         for result in self.dfg().inst_results(ir_inst) {
-            assert!(self.value_lowered_uses[*result] == 0);
+            debug_assert!(self.value_lowered_uses[*result] == 0);
         }
 
         let sunk_inst_entry_color = self
@@ -1683,7 +1683,7 @@ impl<'func, I: VCodeInst> Lower<'func, I> {
             .cloned()
             .unwrap();
         let sunk_inst_exit_color = InstColor::new(sunk_inst_entry_color.get() + 1);
-        assert!(sunk_inst_exit_color == self.cur_scan_entry_color.unwrap());
+        debug_assert!(sunk_inst_exit_color == self.cur_scan_entry_color.unwrap());
         self.cur_scan_entry_color = Some(sunk_inst_entry_color);
         self.inst_sunk.insert(ir_inst);
     }

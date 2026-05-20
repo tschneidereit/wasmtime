@@ -218,6 +218,7 @@ impl Layout {
 ///
 impl Layout {
     /// Is `block` currently part of the layout?
+    #[inline]
     pub fn is_block_inserted(&self, block: Block) -> bool {
         Some(block) == self.first_block || self.blocks[block].prev.is_some()
     }
@@ -333,21 +334,25 @@ impl Layout {
 
     /// Get the function's entry block.
     /// This is simply the first block in the layout order.
+    #[inline]
     pub fn entry_block(&self) -> Option<Block> {
         self.first_block
     }
 
     /// Get the last block in the layout.
+    #[inline]
     pub fn last_block(&self) -> Option<Block> {
         self.last_block
     }
 
     /// Get the block preceding `block` in the layout order.
+    #[inline]
     pub fn prev_block(&self, block: Block) -> Option<Block> {
         self.blocks[block].prev.expand()
     }
 
     /// Get the block following `block` in the layout order.
+    #[inline]
     pub fn next_block(&self, block: Block) -> Option<Block> {
         self.blocks[block].next.expand()
     }
@@ -361,6 +366,7 @@ impl Layout {
     }
 
     /// Is the given block cold?
+    #[inline]
     pub fn is_cold(&self, block: Block) -> bool {
         self.blocks[block].cold
     }
@@ -413,6 +419,7 @@ impl<'f> IntoIterator for &'f Layout {
 /// a block at a given position.
 impl Layout {
     /// Get the block containing `inst`, or `None` if `inst` is not inserted in the layout.
+    #[inline]
     pub fn inst_block(&self, inst: Inst) -> Option<Block> {
         self.insts[inst].block.into()
     }
@@ -451,21 +458,25 @@ impl Layout {
     }
 
     /// Fetch a block's first instruction.
+    #[inline]
     pub fn first_inst(&self, block: Block) -> Option<Inst> {
         self.blocks[block].first_inst.into()
     }
 
     /// Fetch a block's last instruction.
+    #[inline]
     pub fn last_inst(&self, block: Block) -> Option<Inst> {
         self.blocks[block].last_inst.into()
     }
 
     /// Fetch the instruction following `inst`.
+    #[inline]
     pub fn next_inst(&self, inst: Inst) -> Option<Inst> {
         self.insts[inst].next.expand()
     }
 
     /// Fetch the instruction preceding `inst`.
+    #[inline]
     pub fn prev_inst(&self, inst: Inst) -> Option<Inst> {
         self.insts[inst].prev.expand()
     }
