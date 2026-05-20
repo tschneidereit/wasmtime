@@ -389,6 +389,7 @@ impl Instance {
     /// Translate a module-level interned type index into an engine-level
     /// interned type index.
     #[cfg(feature = "gc")]
+    #[inline]
     pub fn engine_type_index(&self, module_index: ModuleInternedTypeIndex) -> VMSharedTypeIndex {
         self.runtime_info.engine_type_index(module_index)
     }
@@ -424,11 +425,13 @@ impl Instance {
     }
 
     /// Return the indexed `VMTagDefinition`.
+    #[inline]
     pub fn tag_ptr(&self, index: DefinedTagIndex) -> NonNull<VMTagDefinition> {
         unsafe { self.vmctx_plus_offset_raw(self.offsets().vmctx_vmtag_definition(index)) }
     }
 
     /// Return the indexed `VMTableDefinition`.
+    #[inline]
     pub fn table(&self, index: DefinedTableIndex) -> VMTableDefinition {
         unsafe { self.table_ptr(index).read() }
     }
@@ -442,6 +445,7 @@ impl Instance {
 
     /// Return a pointer to the `index`'th table within this instance, stored
     /// in vmctx memory.
+    #[inline]
     pub fn table_ptr(&self, index: DefinedTableIndex) -> NonNull<VMTableDefinition> {
         unsafe { self.vmctx_plus_offset_raw(self.offsets().vmctx_vmtable_definition(index)) }
     }

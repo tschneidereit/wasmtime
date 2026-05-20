@@ -61,16 +61,19 @@ pub struct Imm64(i64);
 
 impl Imm64 {
     /// Create a new `Imm64` representing the signed number `x`.
+    #[inline]
     pub fn new(x: i64) -> Self {
         Self(x)
     }
 
     /// Return self negated.
+    #[inline]
     pub fn wrapping_neg(self) -> Self {
         Self(self.0.wrapping_neg())
     }
 
     /// Returns the value of this immediate.
+    #[inline]
     pub fn bits(&self) -> i64 {
         self.0
     }
@@ -93,6 +96,7 @@ impl Imm64 {
     /// Sign extend this immediate as if it were a signed integer of the given
     /// power-of-two width.
     #[must_use]
+    #[inline]
     pub fn sign_extend_from_width(&self, bit_width: u32) -> Self {
         debug_assert!(
             bit_width.is_power_of_two(),
@@ -112,6 +116,7 @@ impl Imm64 {
     /// Zero extend this immediate as if it were an unsigned integer of the
     /// given power-of-two width.
     #[must_use]
+    #[inline]
     pub fn zero_extend_from_width(&self, bit_width: u32) -> Self {
         debug_assert!(
             bit_width.is_power_of_two(),
@@ -200,11 +205,13 @@ pub struct Uimm64(u64);
 
 impl Uimm64 {
     /// Create a new `Uimm64` representing the unsigned number `x`.
+    #[inline]
     pub fn new(x: u64) -> Self {
         Self(x)
     }
 
     /// Return self negated.
+    #[inline]
     pub fn wrapping_neg(self) -> Self {
         Self(self.0.wrapping_neg())
     }
@@ -428,17 +435,20 @@ pub struct Offset32(i32);
 
 impl Offset32 {
     /// Create a new `Offset32` representing the signed number `x`.
+    #[inline]
     pub fn new(x: i32) -> Self {
         Self(x)
     }
 
     /// Create a new `Offset32` representing the signed number `x` if possible.
+    #[inline]
     pub fn try_from_i64(x: i64) -> Option<Self> {
         let x = i32::try_from(x).ok()?;
         Some(Self::new(x))
     }
 
     /// Add in the signed number `x` if possible.
+    #[inline]
     pub fn try_add_i64(self, x: i64) -> Option<Self> {
         let x = i32::try_from(x).ok()?;
         let ret = self.0.checked_add(x)?;

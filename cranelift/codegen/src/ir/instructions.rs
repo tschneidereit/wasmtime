@@ -308,6 +308,7 @@ impl Opcode {
 
     /// Get the constraint descriptor for this opcode.
     /// Panic if this is called on `NotAnOpcode`.
+    #[inline]
     pub fn constraints(self) -> OpcodeConstraints {
         OPCODE_CONSTRAINTS[self as usize - 1]
     }
@@ -588,6 +589,7 @@ impl InstructionData {
     /// Return information about a call instruction.
     ///
     /// Any instruction that can call another function reveals its call signature here.
+    #[inline]
     pub fn analyze_call<'a>(
         &'a self,
         pool: &'a ValueListPool,

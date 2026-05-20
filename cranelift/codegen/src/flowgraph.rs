@@ -157,11 +157,13 @@ impl ControlFlowGraph {
     }
 
     /// Get an iterator over the CFG predecessors to `block`.
+    #[inline]
     pub fn pred_iter(&self, block: Block) -> PredIter<'_> {
         PredIter(self.data[block].predecessors.iter(&self.pred_forest))
     }
 
     /// Get an iterator over the CFG successors to `block`.
+    #[inline]
     pub fn succ_iter(&self, block: Block) -> SuccIter<'_> {
         debug_assert!(self.is_valid());
         self.data[block].successors.iter(&self.succ_forest)
@@ -172,6 +174,7 @@ impl ControlFlowGraph {
     /// Note that this doesn't perform any kind of validity checks. It simply checks if the
     /// `compute()` method has been called since the last `clear()`. It does not check that the
     /// CFG is consistent with the function.
+    #[inline]
     pub fn is_valid(&self) -> bool {
         self.valid
     }
