@@ -291,6 +291,7 @@ impl<T: EntityRef + ReservedValue> EntityList<T> {
     }
 
     /// Returns `true` if the list has a length of 0.
+    #[inline]
     pub fn is_empty(&self) -> bool {
         // 0 is a magic value for the empty list. Any list in the pool array must have a positive
         // length.
@@ -298,18 +299,21 @@ impl<T: EntityRef + ReservedValue> EntityList<T> {
     }
 
     /// Get the number of elements in the list.
+    #[inline]
     pub fn len(&self, pool: &ListPool<T>) -> usize {
         // Both the empty list and any invalidated old lists will return `None`.
         pool.len_of(self).unwrap_or(0)
     }
 
     /// Returns `true` if the list is valid
+    #[inline]
     pub fn is_valid(&self, pool: &ListPool<T>) -> bool {
         // We consider an empty list to be valid
         self.is_empty() || pool.len_of(self) != None
     }
 
     /// Get the list as a slice.
+    #[inline]
     pub fn as_slice<'a>(&self, pool: &'a ListPool<T>) -> &'a [T] {
         let idx = self.index as usize;
         match pool.len_of(self) {
@@ -319,11 +323,13 @@ impl<T: EntityRef + ReservedValue> EntityList<T> {
     }
 
     /// Get a single element from the list.
+    #[inline]
     pub fn get(&self, index: usize, pool: &ListPool<T>) -> Option<T> {
         self.as_slice(pool).get(index).cloned()
     }
 
     /// Get the first element from the list.
+    #[inline]
     pub fn first(&self, pool: &ListPool<T>) -> Option<T> {
         if self.is_empty() {
             None

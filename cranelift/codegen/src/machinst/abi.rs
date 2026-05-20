@@ -100,7 +100,6 @@
 
 use crate::CodegenError;
 use crate::FxHashMap;
-use crate::HashMap;
 use crate::entity::SecondaryMap;
 use crate::ir::{ArgumentExtension, ArgumentPurpose, ExceptionTag, Signature};
 use crate::ir::{StackSlotKey, types::*};
@@ -1140,7 +1139,7 @@ pub struct Callee<M: ABIMachineSpec> {
     /// Signature: arg and retval regs.
     sig: Sig,
     /// Defined dynamic types.
-    dynamic_type_sizes: HashMap<Type, u32>,
+    dynamic_type_sizes: FxHashMap<Type, u32>,
     /// Offsets to each dynamic stackslot.
     dynamic_stackslots: PrimaryMap<DynamicStackSlot, u32>,
     /// Offsets to each sized stackslot.
@@ -1286,7 +1285,8 @@ impl<M: ABIMachineSpec> Callee<M> {
         let stackslots_size = checked_round_up(end_offset, M::word_bytes() - 1)
             .ok_or(CodegenError::ImplLimitExceeded)?;
 
-        let mut dynamic_type_sizes = HashMap::with_capacity(f.dfg.dynamic_types.len());
+        let mut dynamic_type_sizes =
+            FxHashMap::with_capacity_and_hasher(f.dfg.dynamic_types.len(), Default::default());
         for (dyn_ty, _data) in f.dfg.dynamic_types.iter() {
             let ty = f
                 .get_concrete_dynamic_ty(dyn_ty)

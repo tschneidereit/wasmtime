@@ -66,76 +66,91 @@ where
     }
 
     /// Check if `k` is a valid key in the map.
+    #[inline]
     pub fn is_valid(&self, k: K) -> bool {
         k.index() < self.elems.len()
     }
 
     /// Get the element at `k` if it exists.
+    #[inline]
     pub fn get(&self, k: K) -> Option<&V> {
         self.elems.get(k.index())
     }
 
     /// Get the slice of values associated with the given range of keys, if any.
+    #[inline]
     pub fn get_range(&self, range: core::ops::Range<K>) -> Option<&[V]> {
         self.elems.get(range.start.index()..range.end.index())
     }
 
     /// Get the element at `k` if it exists, mutable version.
+    #[inline]
     pub fn get_mut(&mut self, k: K) -> Option<&mut V> {
         self.elems.get_mut(k.index())
     }
 
     /// Is this map completely empty?
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.elems.is_empty()
     }
 
     /// Get the total number of entity references created.
+    #[inline]
     pub fn len(&self) -> usize {
         self.elems.len()
     }
 
     /// Iterate over all the keys in this map.
+    #[inline]
     pub fn keys(&self) -> Keys<K> {
         Keys::with_len(self.elems.len())
     }
 
     /// Iterate over all the values in this map.
+    #[inline]
     pub fn values(&self) -> slice::Iter<'_, V> {
         self.elems.iter()
     }
 
     /// Iterate over all the values in this map, mutable edition.
+    #[inline]
     pub fn values_mut(&mut self) -> slice::IterMut<'_, V> {
         self.elems.iter_mut()
     }
 
     /// Get this map's underlying values as a slice.
+    #[inline]
     pub fn as_values_slice(&self) -> &[V] {
         &self.elems
     }
 
     /// Iterate over all the keys and values in this map.
+    #[inline]
     pub fn iter(&self) -> Iter<'_, K, V> {
         Iter::new(self.elems.iter())
     }
 
     /// Iterate over all the keys and values in this map, mutable edition.
+    #[inline]
     pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
         IterMut::new(self.elems.iter_mut())
     }
 
     /// Remove all entries from this map.
+    #[inline]
     pub fn clear(&mut self) {
         self.elems.clear()
     }
 
     /// Get the key that will be assigned to the next pushed value.
+    #[inline]
     pub fn next_key(&self) -> K {
         K::new(self.elems.len())
     }
 
     /// Append `v` to the mapping, assigning a new key which is returned.
+    #[inline]
     pub fn push(&mut self, v: V) -> K {
         let k = self.next_key();
         self.elems.push(v);
@@ -143,6 +158,7 @@ where
     }
 
     /// Returns the last element that was inserted in the map.
+    #[inline]
     pub fn last(&self) -> Option<(K, &V)> {
         let len = self.elems.len();
         let last = self.elems.last()?;
@@ -150,6 +166,7 @@ where
     }
 
     /// Returns the last element that was inserted in the map.
+    #[inline]
     pub fn last_mut(&mut self) -> Option<(K, &mut V)> {
         let len = self.elems.len();
         let last = self.elems.last_mut()?;

@@ -30,7 +30,6 @@ use regalloc2::{
     OperandConstraint, OperandKind, PRegSet, ProgPoint, RegClass,
 };
 
-use crate::HashMap;
 use crate::hash_map::Entry;
 use core::cmp::Ordering;
 use core::fmt::{self, Write};
@@ -1225,7 +1224,7 @@ impl<I: VCodeInst> VCode<I> {
             self.log_value_labels_ranges(regalloc, inst_offsets);
         }
 
-        let mut value_labels_ranges: ValueLabelsRanges = HashMap::new();
+        let mut value_labels_ranges = ValueLabelsRanges::default();
         for &(label, from, to, alloc) in &regalloc.debug_locations {
             let label = ValueLabel::from_u32(label);
             let ranges = value_labels_ranges.entry(label).or_insert_with(|| vec![]);
@@ -1829,18 +1828,21 @@ impl<I: VCodeInst> VRegAllocator<I> {
 #[derive(Default)]
 pub struct VCodeConstants {
     constants: PrimaryMap<VCodeConstant, VCodeConstantData>,
-    pool_uses: HashMap<Constant, VCodeConstant>,
-    well_known_uses: HashMap<*const [u8], VCodeConstant>,
-    u64s: HashMap<[u8; 8], VCodeConstant>,
+    pool_uses: FxHashMap<Constant, VCodeConstant>,
+    well_known_uses: FxHashMap<*const [u8], VCodeConstant>,
+    u64s: FxHashMap<[u8; 8], VCodeConstant>,
 }
 impl VCodeConstants {
     /// Initialize the structure with the expected number of constants.
     pub fn with_capacity(expected_num_constants: usize) -> Self {
         Self {
             constants: PrimaryMap::with_capacity(expected_num_constants),
-            pool_uses: HashMap::with_capacity(expected_num_constants),
-            well_known_uses: HashMap::new(),
-            u64s: HashMap::new(),
+            pool_uses: FxHashMap::with_capacity_and_hasher(
+                expected_num_constants,
+                Default::default(),
+            ),
+            well_known_uses: FxHashMap::default(),
+            u64s: FxHashMap::default(),
         }
     }
 

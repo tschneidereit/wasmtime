@@ -1,4 +1,4 @@
-use crate::HashMap;
+use crate::FxHashMap;
 use crate::ir::ValueLabel;
 use crate::machinst::Reg;
 use alloc::vec::Vec;
@@ -29,4 +29,4 @@ pub enum LabelValueLoc {
 }
 
 /// Resulting map of Value labels and their ranges/locations.
-pub type ValueLabelsRanges = HashMap<ValueLabel, Vec<ValueLocRange>>;
+pub type ValueLabelsRanges = FxHashMap<ValueLabel, Vec<ValueLocRange>>;

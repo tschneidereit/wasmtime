@@ -1637,12 +1637,12 @@ impl<'func, I: VCodeInst> Lower<'func, I> {
         trace!("put_value_in_regs: val {}", val);
 
         if let Some(inst) = self.f.dfg.value_def(val).inst() {
-            assert!(!self.inst_sunk.contains(&inst));
+            debug_assert!(!self.inst_sunk.contains(&inst));
         }
 
         let regs = self.value_regs[val];
         trace!(" -> regs {:?}", regs);
-        assert!(regs.is_valid());
+        debug_assert!(regs.is_valid());
 
         self.value_lowered_uses[val] += 1;
 

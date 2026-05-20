@@ -1762,9 +1762,9 @@ impl<'a> Verifier<'a> {
             expected_succs.extend(self.expected_cfg.succ_iter(block));
             got_succs.extend(cfg.succ_iter(block));
 
-            let missing_succs: Vec<Block> =
-                expected_succs.difference(&got_succs).cloned().collect();
-            if !missing_succs.is_empty() {
+            if expected_succs.difference(&got_succs).next().is_some() {
+                let missing_succs: Vec<Block> =
+                    expected_succs.difference(&got_succs).cloned().collect();
                 errors.report((
                     block,
                     format!("cfg lacked the following successor(s) {missing_succs:?}"),
@@ -1772,8 +1772,9 @@ impl<'a> Verifier<'a> {
                 continue;
             }
 
-            let excess_succs: Vec<Block> = got_succs.difference(&expected_succs).cloned().collect();
-            if !excess_succs.is_empty() {
+            if got_succs.difference(&expected_succs).next().is_some() {
+                let excess_succs: Vec<Block> =
+                    got_succs.difference(&expected_succs).cloned().collect();
                 errors.report((
                     block,
                     format!("cfg had unexpected successor(s) {excess_succs:?}"),
@@ -1791,8 +1792,9 @@ impl<'a> Verifier<'a> {
                     .map(|BlockPredecessor { inst, .. }| inst),
             );
 
-            let missing_preds: Vec<Inst> = expected_preds.difference(&got_preds).cloned().collect();
-            if !missing_preds.is_empty() {
+            if expected_preds.difference(&got_preds).next().is_some() {
+                let missing_preds: Vec<Inst> =
+                    expected_preds.difference(&got_preds).cloned().collect();
                 errors.report((
                     block,
                     format!("cfg lacked the following predecessor(s) {missing_preds:?}"),
@@ -1800,8 +1802,9 @@ impl<'a> Verifier<'a> {
                 continue;
             }
 
-            let excess_preds: Vec<Inst> = got_preds.difference(&expected_preds).cloned().collect();
-            if !excess_preds.is_empty() {
+            if got_preds.difference(&expected_preds).next().is_some() {
+                let excess_preds: Vec<Inst> =
+                    got_preds.difference(&expected_preds).cloned().collect();
                 errors.report((
                     block,
                     format!("cfg had unexpected predecessor(s) {excess_preds:?}"),

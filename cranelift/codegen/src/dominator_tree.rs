@@ -202,6 +202,7 @@ impl core::fmt::Debug for DominatorTree {
 /// Methods for querying the dominator tree.
 impl DominatorTree {
     /// Is `block` reachable from the entry block?
+    #[inline]
     pub fn is_reachable(&self, block: Block) -> bool {
         self.nodes[block].pre_number != NOT_VISITED
     }
@@ -234,6 +235,7 @@ impl DominatorTree {
     ///
     /// This returns `None` if `block` is not reachable from the entry block, or if it is the entry block
     /// which has no dominators.
+    #[inline]
     pub fn idom(&self, block: Block) -> Option<Block> {
         self.nodes[block].idom.into()
     }
@@ -248,6 +250,7 @@ impl DominatorTree {
     ///
     /// An instruction is considered to dominate itself.
     /// A block is also considered to dominate itself.
+    #[inline]
     pub fn dominates<A, B>(&self, a: A, b: B, layout: &Layout) -> bool
     where
         A: Into<ProgramPoint>,
@@ -292,6 +295,7 @@ impl DominatorTree {
     ///
     /// A block is considered to dominate itself.
     /// This uses preorder numbers for O(1) constant time performance.
+    #[inline]
     pub fn block_dominates(&self, block_a: Block, block_b: Block) -> bool {
         let na = &self.nodes[block_a];
         let nb = &self.nodes[block_b];

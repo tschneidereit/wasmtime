@@ -643,7 +643,9 @@ macro_rules! isle_lower_prelude_methods {
         ) -> OptionTryCallInfo {
             let mut exception_handlers = vec![];
             let mut labels = labels.iter().cloned();
-            for item in self.lower_ctx.dfg().exception_tables[et].clone().items() {
+            let items: ::smallvec::SmallVec<[crate::ir::ExceptionTableItem; 4]> =
+                self.lower_ctx.dfg().exception_tables[et].items().collect();
+            for item in items {
                 match item {
                     crate::ir::ExceptionTableItem::Tag(tag, _) => {
                         exception_handlers.push(crate::machinst::abi::TryCallHandler::Tag(

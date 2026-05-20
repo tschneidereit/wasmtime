@@ -208,11 +208,13 @@ impl DataFlowGraph {
     /// inserted in the layout or not.
     ///
     /// This is intended for use with `SecondaryMap::with_capacity`.
+    #[inline]
     pub fn num_insts(&self) -> usize {
         self.insts.0.len()
     }
 
     /// Returns `true` if the given instruction reference is valid.
+    #[inline]
     pub fn inst_is_valid(&self, inst: Inst) -> bool {
         self.insts.0.is_valid(inst)
     }
@@ -221,11 +223,13 @@ impl DataFlowGraph {
     /// currently inserted in the layout or not.
     ///
     /// This is intended for use with `SecondaryMap::with_capacity`.
+    #[inline]
     pub fn num_blocks(&self) -> usize {
         self.blocks.len()
     }
 
     /// Returns `true` if the given block reference is valid.
+    #[inline]
     pub fn block_is_valid(&self, block: Block) -> bool {
         self.blocks.is_valid(block)
     }
@@ -240,6 +244,7 @@ impl DataFlowGraph {
     }
 
     /// Get the total number of values.
+    #[inline]
     pub fn num_values(&self) -> usize {
         self.values.len()
     }
@@ -361,11 +366,13 @@ impl DataFlowGraph {
     }
 
     /// Check if a value reference is valid.
+    #[inline]
     pub fn value_is_valid(&self, v: Value) -> bool {
         self.values.is_valid(v)
     }
 
     /// Check whether a value is valid and not an alias.
+    #[inline]
     pub fn value_is_real(&self, value: Value) -> bool {
         // Deleted or unused values are also stored as aliases so this excludes
         // those as well.
@@ -373,6 +380,7 @@ impl DataFlowGraph {
     }
 
     /// Is the given value an alias?
+    #[inline]
     pub fn value_is_alias(&self, v: Value) -> bool {
         match ValueData::from(self.values[v]) {
             ValueData::Alias { .. } => true,
@@ -381,6 +389,7 @@ impl DataFlowGraph {
     }
 
     /// Get the type of a value.
+    #[inline]
     pub fn value_type(&self, v: Value) -> Type {
         self.values[v].ty()
     }
@@ -389,6 +398,7 @@ impl DataFlowGraph {
     ///
     /// This is either the instruction that defined it or the Block that has the value as an
     /// parameter.
+    #[inline]
     pub fn value_def(&self, v: Value) -> ValueDef {
         match ValueData::from(self.values[v]) {
             ValueData::Inst { inst, num, .. } => ValueDef::Result(inst, num as usize),
@@ -904,11 +914,13 @@ impl DataFlowGraph {
     }
 
     /// Get all value arguments on `inst` as a slice.
+    #[inline]
     pub fn inst_args(&self, inst: Inst) -> &[Value] {
         self.insts[inst].arguments(&self.value_lists)
     }
 
     /// Get all value arguments on `inst` as a mutable slice.
+    #[inline]
     pub fn inst_args_mut(&mut self, inst: Inst) -> &mut [Value] {
         self.insts[inst].arguments_mut(&mut self.value_lists)
     }
@@ -1069,6 +1081,7 @@ impl DataFlowGraph {
     /// Get the first result of an instruction.
     ///
     /// This function panics if the instruction doesn't have any result.
+    #[inline]
     pub fn first_result(&self, inst: Inst) -> Value {
         self.results[inst]
             .first(&self.value_lists)
@@ -1076,16 +1089,19 @@ impl DataFlowGraph {
     }
 
     /// Test if `inst` has any result values currently.
+    #[inline]
     pub fn has_results(&self, inst: Inst) -> bool {
         !self.results[inst].is_empty()
     }
 
     /// Return all the results of an instruction.
+    #[inline]
     pub fn inst_results(&self, inst: Inst) -> &[Value] {
         self.results[inst].as_slice(&self.value_lists)
     }
 
     /// Return all the results of an instruction as ValueList.
+    #[inline]
     pub fn inst_results_list(&self, inst: Inst) -> ValueList {
         self.results[inst]
     }
@@ -1239,11 +1255,13 @@ impl DataFlowGraph {
     }
 
     /// Get the number of parameters on `block`.
+    #[inline]
     pub fn num_block_params(&self, block: Block) -> usize {
         self.blocks[block].params(&self.value_lists).len()
     }
 
     /// Get the parameters on `block`.
+    #[inline]
     pub fn block_params(&self, block: Block) -> &[Value] {
         self.blocks[block].params(&self.value_lists)
     }
