@@ -69,6 +69,7 @@ impl Reg {
 
     /// Maybe construct from a `regalloc2::VReg`, checking if the
     /// index is in-range for our bit-packing.
+    #[inline]
     pub fn from_virtual_reg_checked(vreg: regalloc2::VReg) -> Option<Reg> {
         let bits = vreg.bits() as u32;
         if bits <= REG_SPILLSLOT_MASK {
@@ -90,6 +91,7 @@ impl Reg {
 
     /// Get the virtual (non-physical) register, if this register is
     /// one.
+    #[inline]
     pub fn to_virtual_reg(self) -> Option<VirtualReg> {
         if self.to_spillslot().is_some() {
             None
@@ -101,6 +103,7 @@ impl Reg {
     }
 
     /// Get the spillslot, if this register is one.
+    #[inline]
     pub fn to_spillslot(self) -> Option<SpillSlot> {
         if (self.0 & REG_SPILLSLOT_BIT) != 0 {
             Some(SpillSlot::new((self.0 & REG_SPILLSLOT_MASK) as usize))
@@ -110,22 +113,26 @@ impl Reg {
     }
 
     /// Get the class of this register.
+    #[inline]
     pub fn class(self) -> RegClass {
         assert!(!self.to_spillslot().is_some());
         VReg::from(self.0).class()
     }
 
     /// Is this a real (physical) reg?
+    #[inline]
     pub fn is_real(self) -> bool {
         self.to_real_reg().is_some()
     }
 
     /// Is this a virtual reg?
+    #[inline]
     pub fn is_virtual(self) -> bool {
         self.to_virtual_reg().is_some()
     }
 
     /// Is this a spillslot?
+    #[inline]
     pub fn is_spillslot(self) -> bool {
         self.to_spillslot().is_some()
     }
@@ -163,16 +170,19 @@ pub struct RealReg(PReg);
 
 impl RealReg {
     /// Get the class of this register.
+    #[inline]
     pub fn class(self) -> RegClass {
         self.0.class()
     }
 
     /// The physical register number.
+    #[inline]
     pub fn hw_enc(self) -> u8 {
         self.0.hw_enc() as u8
     }
 
     /// The underlying PReg.
+    #[inline]
     pub const fn preg(self) -> PReg {
         self.0
     }
@@ -230,21 +240,25 @@ impl<T> Writable<T> {
     /// the documentation for `Writable`, this is not hidden or
     /// disallowed from the outside; anyone can perform the "cast";
     /// but it is explicit so that we can audit the use sites.
+    #[inline]
     pub const fn from_reg(reg: T) -> Writable<T> {
         Writable { reg }
     }
 
     /// Get the underlying register, which can be read.
+    #[inline]
     pub fn to_reg(self) -> T {
         self.reg
     }
 
     /// Get a mutable borrow of the underlying register.
+    #[inline]
     pub fn reg_mut(&mut self) -> &mut T {
         &mut self.reg
     }
 
     /// Map the underlying register to another value or type.
+    #[inline]
     pub fn map<U>(self, f: impl Fn(T) -> U) -> Writable<U> {
         Writable { reg: f(self.reg) }
     }

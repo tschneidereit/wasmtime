@@ -37,6 +37,7 @@ impl Type {
     /// Get the lane type of this SIMD vector type.
     ///
     /// A lane type is the same as a SIMD vector type with one lane, so it returns itself.
+    #[inline]
     pub fn lane_type(self) -> Self {
         if self.0 < constants::VECTOR_BASE {
             self
@@ -48,11 +49,13 @@ impl Type {
     /// The type transformation that returns the lane type of a type variable; it is just a
     /// renaming of lane_type() to be used in context where we think in terms of type variable
     /// transformations.
+    #[inline]
     pub fn lane_of(self) -> Self {
         self.lane_type()
     }
 
     /// Get log_2 of the number of bits in a lane.
+    #[inline]
     pub fn log2_lane_bits(self) -> u32 {
         match self.lane_type() {
             I8 => 3,
@@ -65,6 +68,7 @@ impl Type {
     }
 
     /// Get the number of bits in a lane.
+    #[inline]
     pub fn lane_bits(self) -> u32 {
         match self.lane_type() {
             I8 => 8,
@@ -199,11 +203,13 @@ impl Type {
     }
 
     /// Is this the INVALID type?
+    #[inline]
     pub fn is_invalid(self) -> bool {
         self == INVALID
     }
 
     /// Is this a special type?
+    #[inline]
     pub fn is_special(self) -> bool {
         self.0 < constants::LANE_BASE
     }
@@ -211,6 +217,7 @@ impl Type {
     /// Is this a lane type?
     ///
     /// This is a scalar type that can also appear as the lane type of a SIMD vector.
+    #[inline]
     pub fn is_lane(self) -> bool {
         constants::LANE_BASE <= self.0 && self.0 < constants::VECTOR_BASE
     }
@@ -218,16 +225,19 @@ impl Type {
     /// Is this a SIMD vector type?
     ///
     /// A vector type has 2 or more lanes.
+    #[inline]
     pub fn is_vector(self) -> bool {
         self.0 >= constants::VECTOR_BASE && !self.is_dynamic_vector()
     }
 
     /// Is this a SIMD vector type with a runtime number of lanes?
+    #[inline]
     pub fn is_dynamic_vector(self) -> bool {
         self.0 >= constants::DYNAMIC_VECTOR_BASE
     }
 
     /// Is this a scalar integer type?
+    #[inline]
     pub fn is_int(self) -> bool {
         match self {
             I8 | I16 | I32 | I64 | I128 => true,
@@ -236,6 +246,7 @@ impl Type {
     }
 
     /// Is this a scalar floating point type?
+    #[inline]
     pub fn is_float(self) -> bool {
         match self {
             F16 | F32 | F64 | F128 => true,
@@ -249,6 +260,7 @@ impl Type {
     /// will be a number in the range 0-8.
     ///
     /// A scalar type is the same as a SIMD vector type with one lane, so it returns 0.
+    #[inline]
     pub fn log2_lane_count(self) -> u32 {
         if self.is_dynamic_vector() {
             0
@@ -258,6 +270,7 @@ impl Type {
     }
 
     /// Get log_2 of the number of lanes in this vector/dynamic type.
+    #[inline]
     pub fn log2_min_lane_count(self) -> u32 {
         if self.is_dynamic_vector() {
             (self
@@ -272,6 +285,7 @@ impl Type {
     /// Get the number of lanes in this SIMD vector type.
     ///
     /// A scalar type is the same as a SIMD vector type with one lane, so it returns 1.
+    #[inline]
     pub fn lane_count(self) -> u32 {
         if self.is_dynamic_vector() {
             0
@@ -281,6 +295,7 @@ impl Type {
     }
 
     /// Get the total number of bits used to represent this type.
+    #[inline]
     pub fn bits(self) -> u32 {
         if self.is_dynamic_vector() {
             0
@@ -309,6 +324,7 @@ impl Type {
     }
 
     /// Get the number of bytes used to store this type in memory.
+    #[inline]
     pub fn bytes(self) -> u32 {
         (self.bits() + 7) / 8
     }

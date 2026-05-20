@@ -739,6 +739,7 @@ impl OpcodeConstraints {
     /// Can the controlling type variable for this opcode be inferred from the designated value
     /// input operand?
     /// This also implies that this opcode is polymorphic.
+    #[inline]
     pub fn use_typevar_operand(self) -> bool {
         (self.flags & 0x8) != 0
     }
@@ -749,12 +750,14 @@ impl OpcodeConstraints {
     /// Most polymorphic instructions produce a single result with the type of the controlling type
     /// variable. A few polymorphic instructions either don't produce any results, or produce
     /// results with a fixed type. These instructions return `true`.
+    #[inline]
     pub fn requires_typevar_operand(self) -> bool {
         (self.flags & 0x10) != 0
     }
 
     /// Get the number of *fixed* result values produced by this opcode.
     /// This does not include `variable_args` produced by calls.
+    #[inline]
     pub fn num_fixed_results(self) -> usize {
         (self.flags & 0x7) as usize
     }
@@ -766,6 +769,7 @@ impl OpcodeConstraints {
     /// The number of fixed input values is usually implied by the instruction format, but
     /// instruction formats that use a `ValueList` put both fixed and variable arguments in the
     /// list. This method returns the *minimum* number of values required in the value list.
+    #[inline]
     pub fn num_fixed_value_arguments(self) -> usize {
         ((self.flags >> 5) & 0x7) as usize
     }
@@ -788,6 +792,7 @@ impl OpcodeConstraints {
 
     /// Get the value type of result number `n`, having resolved the controlling type variable to
     /// `ctrl_type`.
+    #[inline]
     pub fn result_type(self, n: usize, ctrl_type: Type) -> Type {
         debug_assert!(n < self.num_fixed_results(), "Invalid result index");
         match OPERAND_CONSTRAINTS[self.constraint_offset() + n].resolve(ctrl_type) {
@@ -801,6 +806,7 @@ impl OpcodeConstraints {
     ///
     /// Unlike results, it is possible for some input values to vary freely within a specific
     /// `ValueTypeSet`. This is represented with the `ArgumentConstraint::Free` variant.
+    #[inline]
     pub fn value_argument_constraint(self, n: usize, ctrl_type: Type) -> ResolvedConstraint {
         debug_assert!(
             n < self.num_fixed_value_arguments(),
@@ -812,11 +818,13 @@ impl OpcodeConstraints {
 
     /// Get the typeset of allowed types for the controlling type variable in a polymorphic
     /// instruction.
+    #[inline]
     pub fn ctrl_typeset(self) -> Option<ValueTypeSet> {
         self.typeset_offset().map(|offset| TYPE_SETS[offset])
     }
 
     /// Is this instruction polymorphic?
+    #[inline]
     pub fn is_polymorphic(self) -> bool {
         self.ctrl_typeset().is_some()
     }
