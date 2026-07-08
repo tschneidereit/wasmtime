@@ -240,10 +240,9 @@ impl StackPool {
         &self,
         stacks: impl Iterator<Item = (wasmtime_fiber::FiberStack, usize)>,
     ) {
-        let items = stacks
-            .map(|(stack, bytes_resident)| (SlotId(self.stack_index(&stack)), bytes_resident))
-            .collect::<Vec<_>>();
-        self.index_allocator.free_many(items);
+        self.index_allocator.free_many(
+            stacks.map(|(stack, bytes_resident)| (SlotId(self.stack_index(&stack)), bytes_resident)),
+        );
     }
 
     fn stack_index(&self, stack: &wasmtime_fiber::FiberStack) -> u32 {

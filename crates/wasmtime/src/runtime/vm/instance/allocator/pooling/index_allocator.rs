@@ -457,24 +457,25 @@ impl ModuleAffinityIndexAllocator {
         Self::free_locked(&mut inner, local, bytes_resident);
     }
 
-    /// Same as [`Self::free`], but frees many slots under a single lock
-    /// acquisition per shard to reduce contention when a decommit-queue
+    /// Same as [`Self::free`], but frees runs of same-shard slots under a
+    /// single lock acquisition to reduce contention when a decommit-queue
     /// flush returns a whole batch of slots at once.
+    ///
+    /// Note that this must not allocate: it is called during deallocation,
+    /// including from OOM-recovery paths where the process may be unable to
+    /// allocate at all. Instead of grouping items per shard up front, the
+    /// shard lock is held across runs of consecutive items that map to the
+    /// same shard; batches naturally arrive clustered by shard because each
+    /// thread's frees target its home shard.
     pub(crate) fn free_many(&self, items: impl IntoIterator<Item = (SlotId, usize)>) {
-        let mut per_shard: smallvec::SmallVec<[smallvec::SmallVec<[(SlotId, usize); 8]>; 16]> =
-            (0..self.shards.len()).map(|_| Default::default()).collect();
+        let mut guard: Option<(ShardId, std::sync::MutexGuard<'_, Inner>)> = None;
         for (index, bytes_resident) in items {
             let (shard, local) = self.shard_of(index);
-            per_shard[shard.index()].push((local, bytes_resident));
-        }
-        for (shard, items) in per_shard.into_iter().enumerate() {
-            if items.is_empty() {
-                continue;
+            if !matches!(&guard, Some((s, _)) if *s == shard) {
+                guard = Some((shard, self.shard(shard).lock().unwrap()));
             }
-            let mut inner = self.shard(ShardId::from_index(shard)).lock().unwrap();
-            for (local, bytes_resident) in items {
-                Self::free_locked(&mut inner, local, bytes_resident);
-            }
+            let (_, inner) = guard.as_mut().unwrap();
+            Self::free_locked(inner, local, bytes_resident);
         }
     }
 

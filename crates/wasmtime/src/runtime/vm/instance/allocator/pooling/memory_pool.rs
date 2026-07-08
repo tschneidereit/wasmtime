@@ -498,19 +498,25 @@ impl MemoryPool {
         &self,
         items: impl Iterator<Item = (MemoryAllocationIndex, Option<MemoryImageSlot>, usize)>,
     ) {
-        let mut per_stripe: Vec<Vec<(SlotId, usize)>> =
-            (0..self.stripes.len()).map(|_| Vec::new()).collect();
-        for (allocation_index, image, bytes_resident) in items {
-            self.return_memory_image_slot(allocation_index, image);
-            let (stripe_index, striped_allocation_index) =
-                StripedAllocationIndex::from_unstriped_slot_index(
-                    allocation_index,
-                    self.stripes.len(),
-                );
-            per_stripe[stripe_index].push((SlotId(striped_allocation_index.0), bytes_resident));
-        }
-        for (stripe, items) in self.stripes.iter().zip(per_stripe) {
-            stripe.allocator.free_many(items);
+        let mut items = items
+            .map(|(allocation_index, image, bytes_resident)| {
+                self.return_memory_image_slot(allocation_index, image);
+                let (stripe_index, striped_allocation_index) =
+                    StripedAllocationIndex::from_unstriped_slot_index(
+                        allocation_index,
+                        self.stripes.len(),
+                    );
+                (
+                    stripe_index,
+                    SlotId(striped_allocation_index.0),
+                    bytes_resident,
+                )
+            })
+            .peekable();
+        while let Some(&(stripe_index, ..)) = items.peek() {
+            let run = core::iter::from_fn(|| items.next_if(|&(s, ..)| s == stripe_index))
+                .map(|(_, slot, bytes_resident)| (slot, bytes_resident));
+            self.stripes[stripe_index].allocator.free_many(run);
         }
     }
 

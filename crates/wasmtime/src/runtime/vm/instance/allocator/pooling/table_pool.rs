@@ -200,14 +200,12 @@ impl TablePool {
         &self,
         items: impl Iterator<Item = (TableAllocationIndex, Table, usize)>,
     ) {
-        let items = items
-            .map(|(allocation_index, table, bytes_resident)| {
+        self.index_allocator
+            .free_many(items.map(|(allocation_index, table, bytes_resident)| {
                 assert!(table.is_static());
                 drop(table);
                 (SlotId(allocation_index.0), bytes_resident)
-            })
-            .collect::<Vec<_>>();
-        self.index_allocator.free_many(items);
+            }));
     }
 
     /// Reset the given table's memory to zero.
